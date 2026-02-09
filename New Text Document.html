@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopkeeper Expense Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen pb-20">
+
+<div x-data="expenseApp()" x-init="init()">
+    <header class="bg-blue-600 p-4 text-white shadow-lg sticky top-0 z-10">
+        <h1 class="text-xl font-bold">Shopkeeper Tracker</h1>
+        <p class="text-sm opacity-80">Managing: <span x-text="shopName"></span></p>
+    </header>
+
+    <main class="p-4 space-y-4">
+        <div class="grid grid-cols-1 gap-4">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border-l-4 border-green-500">
+                <p class="text-sm uppercase font-semibold text-gray-500">Today's Total</p>
+                <h2 class="text-3xl font-bold">₹<span x-text="formatNumber(getTodayTotal())"></span></h2>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                <p class="text-xs text-gray-500">This Week</p>
+                <p class="text-lg font-bold">₹<span x-text="formatNumber(getWeeklyTotal())"></span></p>
+            </div>
+            <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm">
+                <p class="text-xs text-gray-500">This Month</p>
+                <p class="text-lg font-bold">₹<span x-text="formatNumber(getMonthlyTotal())"></span></p>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-bold text-lg">Recent Expenses</h3>
+                <button @click="viewAll = !viewAll" class="text-blue-500 text-sm">View All</button>
+            </div>
+            <div class="space-y-2">
+                <template x-for="item in expenses.slice(0, 5)" :key="item.id">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg flex justify-between items-center shadow-sm">
+                        <div>
+                            <p class="font-bold" x-text="item.name"></p>
+                            <p class="text-xs text-gray-500" x-text="item.category + ' • ' + item.date"></p>
+                        </div>
+                        <p class="font-bold text-red-500">-₹<span x-text="item.total"></span></p>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </main>
+
+    <button @click="showModal = true" class="fixed bottom-6 right-6 bg-blue-600 text-white w-16 h-16 rounded-full shadow-2xl text-3xl font-bold flex items-center justify-center hover:bg-blue-700 transition">
+        +
+    </button>
+
+    <div x-show="showModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
+        <div @click.away="showModal = false" class="bg-white dark:bg-gray-800 w-full max-w-md p-6 rounded-t-3xl sm:rounded-3xl shadow-xl">
+            <h3 class="text-xl font-bold mb-4 text-center">New Entry</h3>
+            <div class="space-y-4">
+                <input type="text" x-model="newEntry.name" placeholder="Item Name (e.g. Milk)" class="w-full p-4 bg-gray-100 dark:bg-gray-700 rounded-xl outline-none border-2 border-transparent focus:border-blue-500">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <input type="number" x-model.number="newEntry.qty" placeholder="Qty" class="p-4 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                    <input type="number" x-model.number="newEntry.cost" placeholder="Price/Unit" class="p-4 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="cat in categories">
+                        <button @click="newEntry.category = cat" 
+                                :class="newEntry.category === cat ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'"
+                                class="px-4 py-2 rounded-full text-xs font-semibold transition" x-text="cat"></button>
+                    </template>
+                </div>
+
+                <button @click="addExpense()" class="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg">Save Expense</button>
+                <button @click="showModal = false" class="w-full py-2 text-gray-500">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function expenseApp() {
+        return {
+            shopName: 'Ganesh General Store',
+            expenses: [],
+            showModal: false,
+            categories: ['Stock', 'Transport', 'Packaging', 'Rent', 'Other'],
+            newEntry: { name: '', qty: null, cost: null, category: 'Stock', date: new Date().toISOString().split('T')[0] },
+
+            init() {
+                const saved = localStorage.getItem('shop_expenses');
+                if (saved) this.expenses = JSON.parse(saved);
+            },
+
+            addExpense() {
+                if (!this.newEntry.name || !this.newEntry.cost) return alert('Enter details');
+                const entry = {
+                    ...this.newEntry,
+                    id: Date.now(),
+                    total: this.newEntry.qty * this.newEntry.cost
+                };
+                this.expenses.unshift(entry);
+                localStorage.setItem('shop_expenses', JSON.stringify(this.expenses));
+                this.resetForm();
+                this.showModal = false;
+            },
+
+            resetForm() {
+                this.newEntry = { name: '', qty: null, cost: null, category: 'Stock', date: new Date().toISOString().split('T')[0] };
+            },
+
+            getTodayTotal() {
+                const today = new Date().toISOString().split('T')[0];
+                return this.expenses
+                    .filter(e => e.date === today)
+                    .reduce((sum, e) => sum + e.total, 0);
+            },
+
+            // Add logic for Weekly/Monthly totals here
+            getWeeklyTotal() { return 0; /* logic */ },
+            getMonthlyTotal() { return 0; /* logic */ },
+
+            formatNumber(num) {
+                return num.toLocaleString('en-IN');
+            }
+        }
+    }
+</script>
+</body>
+</html>
